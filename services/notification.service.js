@@ -166,6 +166,25 @@ class NotificationService extends BaseService {
 
     return this.queueNotification(notification);
   }
+
+  /**
+   * Handle doctor approval status change notification
+   * معالجة إشعار تغيير حالة موافقة الطبيب
+   */
+  async handleDoctorApprovalChange({ doctorId, approved }) {
+    return this.queueNotification({
+      userId: doctorId,
+      title: approved ? 'Account Approved - تم تفعيل الحساب' : 'Account Approval Revoked - تم إلغاء تفعيل الحساب',
+      body: approved 
+        ? 'Your account has been approved. You can now use the system. - تم الموافقة على حسابك. يمكنك الآن استخدام النظام'
+        : 'Your account approval has been revoked. Please contact support. - تم إلغاء الموافقة على حسابك. يرجى التواصل مع الدعم',
+      data: {
+        type: 'APPROVAL_STATUS_CHANGE',
+        approved
+      },
+      priority: 'high'
+    });
+  }
 }
 
 // Create and export singleton instance

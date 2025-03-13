@@ -136,6 +136,42 @@ const ValidationRules = {
   sanitizeNumber: (value) => {
     const num = parseFloat(value);
     return isNaN(num) ? 0 : num;
+  },
+
+  // قواعد جديدة للتحقق من بيانات الطبيب
+  validateSpecialization: (value, fieldName) => {
+    const validSpecializations = [
+      'عام',
+      'باطنة',
+      'أطفال',
+      'نساء وتوليد',
+      'جراحة عامة',
+      'عظام',
+      'مخ وأعصاب',
+      'قلب وأوعية دموية',
+      'أنف وأذن وحنجرة',
+      'عيون',
+      'جلدية',
+      'نفسية',
+      'أسنان'
+    ];
+    return validSpecializations.includes(value)
+      ? null
+      : `${fieldName} must be a valid specialization - يجب أن يكون ${fieldName} تخصصاً صحيحاً`;
+  },
+
+  validateLicenseNumber: (value, fieldName) => {
+    const licensePattern = /^[A-Z]{2}\d{6}$/;
+    return licensePattern.test(value)
+      ? null
+      : `${fieldName} must be in format XX000000 - يجب أن يكون ${fieldName} بتنسيق XX000000`;
+  },
+
+  validateWorkExperience: (value, fieldName) => {
+    const years = parseInt(value);
+    return !isNaN(years) && years >= 0 && years <= 50
+      ? null
+      : `${fieldName} must be between 0 and 50 years - يجب أن تكون سنوات الخبرة بين 0 و 50 سنة`;
   }
 };
 
@@ -165,22 +201,31 @@ const ValidationSchemas = {
     fullName: [
       ValidationRules.required,
       ValidationRules.minLength(3),
-      ValidationRules.maxLength(50),
+      ValidationRules.maxLength(50)
     ],
     specialization: [
       ValidationRules.required,
-      ValidationRules.minLength(2),
-      ValidationRules.maxLength(50),
+      ValidationRules.validateSpecialization
     ],
-    licenseNumber: [ValidationRules.required, ValidationRules.minLength(5)],
+    licenseNumber: [
+      ValidationRules.required,
+      ValidationRules.validateLicenseNumber
+    ],
     workExperience: [
       ValidationRules.required,
-      ValidationRules.numeric,
-      ValidationRules.inRange(0, 70),
+      ValidationRules.validateWorkExperience
     ],
-    medicalCode: [ValidationRules.required, ValidationRules.validateMedicalCode],
-    availability: [ValidationRules.required, ValidationRules.isArray],
-    languages: [ValidationRules.isArray],
+    education: [
+      ValidationRules.required,
+      ValidationRules.minLength(5),
+      ValidationRules.maxLength(200)
+    ],
+    phone: [
+      ValidationRules.validatePhoneNumber
+    ],
+    email: [
+      ValidationRules.email
+    ]
   },
 
   appointment: {

@@ -8,11 +8,12 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.email_verified;
     }
     
-    // التحقق من طبيب نشط
+    // التحقق من طبيب نشط وموافق عليه
     function isActiveDoctor() {
       return isAuthenticated() && 
         exists(/databases/$(database)/documents/doctors/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/doctors/$(request.auth.uid)).data.status == 'active';
+        get(/databases/$(database)/documents/doctors/$(request.auth.uid)).data.status == 'active' &&
+        get(/databases/$(database)/documents/doctors/$(request.auth.uid)).data.approved == true;
     }
     
     // التحقق من مريض نشط
@@ -21,12 +22,26 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/patients/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/patients/$(request.auth.uid)).data.status == 'active';
     }
+
+    // التحقق من مسؤول النظام
+    function isAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.isActive == true;
+    }
     
     // التحقق من صلاحيات الطبيب للوصول
     function hasPatientAccess(patientId) {
       return isActiveDoctor() && 
         exists(/databases/$(database)/documents/patients/$(patientId)/permissions/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/patients/$(patientId)/permissions/$(request.auth.uid)).data.status == 'active';
+    }
+
+    // التحقق من صلاحيات المريض للوصول
+    function hasDoctorAccess(doctorId) {
+      return isActivePatient() &&
+        exists(/databases/$(database)/documents/doctors/$(doctorId)/permissions/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/doctors/$(doctorId)/permissions/$(request.auth.uid)).data.status == 'active';
     }
 
     // التحقق من صحة البيانات
@@ -98,9 +113,23 @@ service cloud.firestore {
 
     // مجموعة الأطباء
     match /doctors/{doctorId} {
+      // السماح للجميع بقراءة البيانات العامة للأطباء
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidDoctorData(request.resource.data);
-      allow update: if isOwner(doctorId) && isValidDoctorData(request.resource.data);
+      
+      // السماح بالتسجيل للأطباء الجدد
+      allow create: if isAuthenticated() && 
+        request.resource.data.approved == false && 
+        request.resource.data.status == 'pending';
+      
+      // السماح للمسؤول بتحديث حالة الموافقة
+      allow update: if (isAdmin() && 
+          (request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['approved', 'status', 'updatedAt']))) || 
+        (isActiveDoctor() && request.auth.uid == doctorId && 
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['approved', 'status']));
+      
+      // منع حذف حسابات الأطباء
       allow delete: if false;
 
       // جدول المواعيد

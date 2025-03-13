@@ -10,11 +10,6 @@ import { logger } from '../utils/logger.js';
 
 /**
  * Verifies Firebase authentication token
- * التحقق من صحة رمز المصادقة
- * @param {Request} req - Express request object
- * @param {Response} _res - Express response object
- * @param {Function} next - Next middleware function
- * @throws {UnauthorizedError} If token is invalid or missing
  */
 export const requireAuth = async (req, _res, next) => {
   try {
@@ -34,12 +29,7 @@ export const requireAuth = async (req, _res, next) => {
 };
 
 /**
- * Verifies user is a doctor with valid status
- * التحقق من أن المستخدم طبيب بحالة صالحة
- * @param {Request} req - Express request object
- * @param {Response} _res - Express response object
- * @param {Function} next - Next middleware function
- * @throws {ForbiddenError} If user is not a doctor
+ * Verifies user is an approved doctor with valid status
  */
 export const requireDoctor = async (req, _res, next) => {
   try {
@@ -47,6 +37,15 @@ export const requireDoctor = async (req, _res, next) => {
     if (!doctorDoc) {
       throw new ForbiddenError('Doctor access required - مطلوب صلاحيات طبيب');
     }
+
+    if (!doctorDoc.approved) {
+      throw new ForbiddenError('Account pending approval - الحساب في انتظار الموافقة');
+    }
+
+    if (doctorDoc.status !== 'active') {
+      throw new ForbiddenError('Account is not active - الحساب غير نشط');
+    }
+
     req.doctor = doctorDoc;
     next();
   } catch (error) {

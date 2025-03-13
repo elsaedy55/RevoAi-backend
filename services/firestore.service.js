@@ -308,6 +308,48 @@ class FirestoreService {
       throw error;
     }
   }
+
+  /**
+   * Search doctors by criteria
+   * @param {Object} searchParams - Search parameters (status, specialization, etc)
+   * @returns {Promise<Array>} Array of matching doctors
+   */
+  async searchDoctors(searchParams) {
+    try {
+      const cacheKey = `doctors:search:${JSON.stringify(searchParams)}`;
+      
+      return await this.getCached(cacheKey, async () => {
+        const doctorsRef = collection(this.db, this.collections.DOCTORS);
+        const conditions = [];
+
+        // Add search conditions based on params
+        if (searchParams.status) {
+          conditions.push(['status', '==', searchParams.status]);
+        }
+        if (searchParams.specialization) {
+          conditions.push(['specialization', '==', searchParams.specialization]);
+        }
+        if (searchParams.approved !== undefined) {
+          conditions.push(['approved', '==', searchParams.approved]);
+        }
+
+        // Apply conditions to query
+        let query = doctorsRef;
+        conditions.forEach(([field, op, value]) => {
+          query = query.where(field, op, value);
+        });
+
+        const snapshot = await getDocs(query);
+        return snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+      }, 30000); // 30 seconds cache for search results
+    } catch (error) {
+      logger.error('Error searching doctors:', error);
+      throw error;
+    }
+  }
 }
 
 // Create and export a singleton instance

@@ -6,8 +6,8 @@
 import express from 'express';
 import multer from 'multer';
 import { doctorService } from '../services/doctor.service.js';
-import { patientService } from '../services/patient.service.js';
-import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireAuth, requireDoctor } from '../middleware/auth.middleware.js';
+import { validateDoctor } from '../middleware/validation.middleware.js';
 import { logger } from '../utils/logger.js';
 
 const router = express.Router();
@@ -31,12 +31,12 @@ const upload = multer({
  * @param {File} req.file - License image file
  * @returns {Object} Registered doctor data with JWT token
  */
-router.post('/register/email', upload.single('licenseImage'), async (req, res) => {
+router.post('/register/email', upload.single('licenseImage'), validateDoctor, async (req, res) => {
   try {
     const { email, password, ...doctorData } = req.body;
 
     if (!req.file) {
-      throw new Error('License image is required - صورة الرخصة مطلوبة');
+      throw new Error('صورة الرخصة مطلوبة');
     }
 
     const result = await doctorService.registerWithEmail(
@@ -45,41 +45,13 @@ router.post('/register/email', upload.single('licenseImage'), async (req, res) =
     );
 
     res.status(201).json({
-      message: 'Doctor registered successfully - تم تسجيل الطبيب بنجاح',
+      message: 'تم تسجيل الطبيب بنجاح',
       ...result,
     });
   } catch (error) {
-    logger.error('Doctor registration failed:', error);
+    logger.error('فشل تسجيل الطبيب:', error);
     res.status(400).json({
-      error: error.message || 'Registration failed - فشل التسجيل',
-    });
-  }
-});
-
-/**
- * @route POST /api/doctors/register/google
- * @desc Register a new doctor with Google authentication
- * تسجيل طبيب جديد باستخدام حساب جوجل
- * @param {Object} req.body - Doctor registration data
- * @param {File} req.file - License image file
- * @returns {Object} Registered doctor data with JWT token
- */
-router.post('/register/google', upload.single('licenseImage'), async (req, res) => {
-  try {
-    if (!req.file) {
-      throw new Error('License image is required - صورة الرخصة مطلوبة');
-    }
-
-    const result = await doctorService.registerWithGoogle(req.body, req.file);
-
-    res.status(201).json({
-      message: 'Doctor registered successfully - تم تسجيل الطبيب بنجاح',
-      ...result,
-    });
-  } catch (error) {
-    logger.error('Doctor registration with Google failed:', error);
-    res.status(400).json({
-      error: error.message || 'Registration failed - فشل التسجيل',
+      error: error.message || 'فشل التسجيل'
     });
   }
 });
@@ -145,4 +117,3 @@ router.get('/profile', requireAuth, async (req, res) => {
 });
 
 export default router;
-logger

@@ -71,6 +71,7 @@ class DoctorService {
         workExperience: doctorData.workExperience,
         education: doctorData.education,
         licenseImageUrl: imageUrl,
+        approved: false, // Initially not approved
         status: 'pending',
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -117,6 +118,7 @@ class DoctorService {
         workExperience: doctorData.workExperience,
         education: doctorData.education,
         licenseImageUrl: imageUrl,
+        approved: false, // Initially not approved
         status: 'pending',
         createdAt: new Date(),
         updatedAt: new Date(),

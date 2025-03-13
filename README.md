@@ -1,149 +1,146 @@
-# RevoAI Medical Records Management System
+# RevoAI نظام إدارة السجلات الطبية
 
-A comprehensive medical records management system built with Node.js and Firebase, designed to streamline healthcare data management with real-time capabilities, robust security, and bilingual support (English/Arabic). The system facilitates secure communication between doctors and patients while ensuring data privacy and compliance with healthcare standards.
+نظام شامل لإدارة السجلات الطبية مبني باستخدام Node.js و Firebase، مصمم لتسهيل إدارة البيانات الطبية مع قدرات الوقت الفعلي، أمان قوي، ودعم للغتين (الإنجليزية/العربية). يسهل النظام التواصل الآمن بين الأطباء والمرضى مع ضمان خصوصية البيانات والامتثال للمعايير الطبية.
 
-## 🌟 Key Features
+## 🌟 المميزات الرئيسية
 
-- **Advanced Authentication System**
-  - Multi-provider authentication (Email/Password, Google)
-  - Role-based access control (RBAC)
-  - Secure session management with JWT
-  - Password recovery and email verification
+- **نظام مصادقة متقدم**
+  - مصادقة متعددة المزودين (البريد الإلكتروني/كلمة المرور، جوجل)
+  - التحكم في الصلاحيات القائم على الأدوار (RBAC)
+  - إدارة آمنة للجلسات باستخدام JWT
+  - استعادة كلمة المرور والتحقق من البريد الإلكتروني
 
-- **🏥 Doctor Portal**
-  - Comprehensive profile management
-  - Automated license verification system
-  - Patient search with privacy controls
-  - Medical records access and management
-  - Real-time notifications for patient updates
-  - Appointment scheduling and management
+- **🏥 بوابة الطبيب**
+  - إدارة شاملة للملف الشخصي
+  - نظام التحقق الآلي من التراخيص
+  - عملية التحقق من الهوية متعددة المراحل
+  - البحث عن المرضى مع ضوابط الخصوصية
+  - الوصول وإدارة السجلات الطبية
+  - إشعارات فورية لتحديثات المرضى
+  - جدولة وإدارة المواعيد
 
-- **👤 Patient Portal**
-  - Secure medical profile management
-  - Granular access control for medical data
-  - Comprehensive medical history tracking
-  - Doctor access permission management
-  - Real-time updates for medical records
-  - Appointment booking and tracking
+- **👤 بوابة المريض**
+  - إدارة آمنة للملف الطبي
+  - تحكم دقيق في صلاحيات البيانات الطبية
+  - تتبع شامل للتاريخ الطبي
+  - إدارة أذونات وصول الأطباء
+  - تحديثات فورية للسجلات الطبية
+  - حجز وتتبع المواعيد
 
-- **🔒 Enterprise-Grade Security**
-  - Advanced role-based access control
-  - Firebase Security Rules implementation
-  - Intelligent rate limiting
-  - Comprehensive input validation
-  - Secure file upload system with validation
-  - Data encryption at rest and in transit
+- **🔒 أمان مؤسسي المستوى**
+  - التحكم المتقدم في الصلاحيات القائم على الأدوار
+  - تنفيذ قواعد أمان Firebase
+  - تحديد ذكي لمعدل الطلبات
+  - تحقق شامل من المدخلات
+  - نظام آمن لرفع الملفات مع التحقق
+  - تشفير البيانات أثناء الراحة والنقل
 
-- **💻 Technical Excellence**
-  - Firebase real-time database integration
-  - Microservices-based architecture
-  - Comprehensive error handling system
-  - Advanced logging and monitoring
-  - Extensive test coverage with Jest
-  - Code quality tools (ESLint, Prettier)
-  - CI/CD pipeline support
+## 🚀 البدء السريع
 
-## 🚀 Getting Started
+### المتطلبات الأساسية
 
-### Prerequisites
-
-- Node.js (version >= 14)
-- Firebase account and project setup
-- npm or yarn package manager
+- Node.js (الإصدار >= 14)
+- حساب Firebase ومشروع مُعد
+- مدير الحزم npm أو yarn
 - Git
 
-### Quick Start
+### خطوات التثبيت
 
-1. **Clone and Setup**
+1. **استنساخ وإعداد المشروع**
    ```bash
-   git clone [repository-url]
+   git clone [رابط-المستودع]
    cd revoai
    npm install
    ```
 
-2. **Environment Configuration**
+2. **تكوين البيئة**
    ```bash
    cp .env.example .env
-   # Edit .env with your Firebase credentials and app settings
+   # قم بتحرير ملف .env مع بيانات اعتماد Firebase وإعدادات التطبيق
    ```
 
-3. **Firebase Setup**
+3. **إعداد Firebase**
    ```bash
    npm install -g firebase-tools
    firebase login
    firebase init
    ```
 
-4. **Development**
+4. **التطوير**
    ```bash
-   npm run dev          # Start development server
-   npm test            # Run tests
-   npm run lint        # Check code style
-   npm run format      # Format code
+   npm run dev          # تشغيل خادم التطوير
+   npm test            # تشغيل الاختبارات
+   npm run lint        # فحص نمط الكود
+   npm run format      # تنسيق الكود
    ```
 
-## 📁 Project Architecture
+## 📁 هيكل المشروع
 
 ```
 project-root/
-├── config/          # App configuration and constants
-├── functions/       # Firebase Cloud Functions
-├── middleware/      # Express middleware (auth, validation)
-├── public/         # Static assets and client-side files
-├── routes/         # API route definitions
-├── services/       # Core business logic
-├── tests/          # Test suites
-└── utils/          # Utility functions and helpers
+├── config/          # تكوين التطبيق والثوابت
+├── functions/       # دوال Firebase السحابية
+├── middleware/      # وسائط Express (المصادقة، التحقق)
+├── public/         # الملفات الثابتة وملفات جانب العميل
+├── routes/         # تعريفات مسارات API
+├── services/       # المنطق الأساسي للأعمال
+├── tests/          # مجموعات الاختبار
+└── utils/          # الدوال المساعدة
 ```
 
-## 📚 API Documentation
+## 📚 توثيق API
 
-### 🏥 Doctor API Endpoints
+### 🏥 نقاط نهاية API الطبيب
 
-#### Authentication
-- `POST /api/doctors/register/email`
-- `POST /api/doctors/register/google`
-- `POST /api/doctors/login`
-- `GET /api/doctors/profile`
+#### المصادقة
+- `POST /api/doctors/register/email` - تسجيل طبيب جديد بالبريد الإلكتروني
+- `POST /api/doctors/register/google` - تسجيل طبيب جديد بحساب جوجل
+- `POST /api/doctors/login` - تسجيل دخول الطبيب
+- `GET /api/doctors/profile` - عرض الملف الشخصي للطبيب
 
-#### Patient Management
-- `GET /api/doctors/patients`
-- `GET /api/doctors/search-patients`
-- `POST /api/doctors/request-access`
+#### إدارة المرضى
+- `GET /api/doctors/patients` - عرض قائمة المرضى
+- `GET /api/doctors/search-patients` - البحث عن المرضى
+- `POST /api/doctors/request-access` - طلب الوصول لملف مريض
 
-### 👤 Patient API Endpoints
+### 🔒 نقاط نهاية API المسؤول
 
-#### Authentication
-- `POST /api/patients/register/email`
-- `POST /api/patients/register/google`
-- `POST /api/patients/login`
-- `GET /api/patients/profile`
+#### إدارة الأطباء
+- `GET /api/admin/doctors/pending` - عرض قائمة الأطباء المعلقين
+- `PUT /api/admin/doctors/:doctorId/approval` - تحديث حالة موافقة الطبيب
 
-#### Medical Records
-- `GET /api/patients/medical-history`
-- `PUT /api/patients/medical-data`
-- `POST /api/patients/grant-access`
+### 👤 نقاط نهاية API المريض
 
-### 🔒 Security Implementation
+#### المصادقة
+- `POST /api/patients/register/email` - تسجيل مريض جديد بالبريد الإلكتروني
+- `POST /api/patients/login` - تسجيل دخول المريض
+- `GET /api/patients/profile` - عرض الملف الشخصي للمريض
 
-1. **Authentication Layer**
-   - Firebase Authentication
-   - JWT token management
-   - Session handling
+#### السجلات الطبية
+- `GET /api/patients/medical-history` - عرض التاريخ الطبي
+- `PUT /api/patients/medical-data` - تحديث البيانات الطبية
+- `POST /api/patients/grant-access` - منح صلاحية الوصول لطبيب
 
-2. **Authorization Layer**
-   - Role-based permissions
-   - Resource-level access control
-   - Data access policies
+### 🔒 تنفيذ نظام الأمان
 
-3. **Data Protection**
-   - End-to-end encryption
-   - Secure data transmission
-   - Privacy controls
+1. **طبقة المصادقة**
+   - مصادقة Firebase
+   - إدارة رموز JWT
+   - معالجة الجلسات
 
-## ⚙️ Configuration
+2. **طبقة التفويض**
+   - الصلاحيات القائمة على الأدوار
+   - التحكم في الوصول على مستوى الموارد
+   - سياسات الوصول للبيانات
 
-### Environment Variables
+3. **حماية البيانات**
+   - تشفير من طرف إلى طرف
+   - نقل آمن للبيانات
+   - ضوابط الخصوصية
+
+## ⚙️ التكوين
+
+### متغيرات البيئة
 
 ```env
 FIREBASE_API_KEY=your_api_key
@@ -153,51 +150,52 @@ JWT_SECRET=your_jwt_secret
 NODE_ENV=development
 ```
 
-## 🧪 Testing Strategy
+## 🧪 استراتيجية الاختبار
 
-- **Unit Tests**: Core business logic
-- **Integration Tests**: API endpoints
-- **E2E Tests**: User workflows
-- **Security Tests**: Vulnerability checks
+- **اختبارات الوحدة**: المنطق الأساسي للأعمال
+- **اختبارات التكامل**: نقاط نهاية API
+- **اختبارات E2E**: تدفقات المستخدم
+- **اختبارات الأمان**: فحص الثغرات
 
-Run tests:
+تشغيل الاختبارات:
 ```bash
-npm test                 # Run all tests
-npm run test:coverage    # Generate coverage report
-npm run test:e2e        # Run E2E tests
+npm test                 # تشغيل جميع الاختبارات
+npm run test:coverage    # إنشاء تقرير التغطية
+npm run test:e2e        # تشغيل اختبارات E2E
 ```
 
-## 🤝 Contributing
+## 🤝 المساهمة
 
-1. Fork the repository
-2. Create your feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Submit a pull request
+1. انسخ المستودع
+2. أنشئ فرع الميزة الخاص بك: `git checkout -b feature/amazing-feature`
+3. قم بعمل commit للتغييرات: `git commit -m 'إضافة ميزة رائعة'`
+4. ادفع إلى الفرع: `git push origin feature/amazing-feature`
+5. قدم طلب سحب
 
-### Contribution Guidelines
-- Follow the coding style
-- Add tests for new features
-- Update documentation
-- Follow commit message conventions
+### إرشادات المساهمة
+- اتبع نمط الترميز
+- أضف اختبارات للميزات الجديدة
+- حدّث التوثيق
+- اتبع اصطلاحات رسائل commit
 
-## 📄 License
+## 📄 الترخيص
 
-This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
+هذا المشروع مرخص تحت رخصة MIT - انظر [LICENSE](LICENSE) للتفاصيل.
 
-## 🆘 Support
+## 🆘 الدعم
 
-- Technical Support: [support@revoai.com](mailto:support@revoai.com)
-- Documentation: [docs.revoai.com](https://docs.revoai.com)
-- Issue Tracking: GitHub Issues
+- الدعم الفني: [support@revoai.com](mailto:support@revoai.com)
+- التوثيق: [docs.revoai.com](https://docs.revoai.com)
+- تتبع المشكلات: GitHub Issues
 
-## 🔄 Version History
+## 🔄 سجل الإصدارات
 
-- v1.0.0 - Initial Release
-  - Basic authentication
-  - Core medical records functionality
-  - Doctor-patient interaction features
+- v1.0.0 - الإصدار الأولي
+  - المصادقة الأساسية
+  - وظائف السجلات الطبية الأساسية
+  - ميزات تفاعل الطبيب والمريض
+  - نظام التحقق من الأطباء
 
 ---
 
-Built with ❤️ by the RevoAI Team
+بُني بـ ❤️ بواسطة فريق RevoAI
