@@ -1,0 +1,36 @@
+{
+  "env": {
+    "node": true,
+    "es2021": true,
+    "jest": true,
+    "serviceworker": true,
+    "browser": true
+  },
+  "extends": ["eslint:recommended", "prettier"],
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "rules": {
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "no-var": "error",
+    "prefer-const": "error",
+    "eqeqeq": ["error", "always"],
+    "curly": ["error", "all"],
+    "no-multiple-empty-lines": ["error", { "max": 1 }],
+    "quotes": ["error", "single", { "avoidEscape": true }],
+    "semi": ["error", "always"]
+  },
+  "overrides": [
+    {
+      "files": ["public/firebase-messaging-sw.js"],
+      "globals": {
+        "firebase": "readonly",
+        "importScripts": "readonly",
+        "clients": "readonly",
+        "self": "readonly"
+      }
+    }
+  ]
+}

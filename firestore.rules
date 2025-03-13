@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions - الدوال المساعدة
+    
+    // Check if user is authenticated - التحقق من مصادقة المستخدم
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user is a doctor - التحقق من أن المستخدم طبيب
+    function isDoctor() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/doctors/$(request.auth.uid));
+    }
+    
+    // Check if user is a patient - التحقق من أن المستخدم مريض
+    function isPatient() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/patients/$(request.auth.uid));
+    }
+    
+    // Check if doctor has access to patient data - التحقق من صلاحية الطبيب للوصول إلى بيانات المريض
+    function hasPatientAccess(patientId) {
+      return isDoctor() && 
+        exists(/databases/$(database)/documents/patients/$(patientId)/permissions/$(request.auth.uid));
+    }
+    
+    // Patient collection rules - قواعد مجموعة المرضى
+    match /patients/{patientId} {
+      // Allow read if user is the patient or an authorized doctor
+      // السماح بالقراءة إذا كان المستخدم هو المريض أو طبيب مصرح له
+      allow read: if isAuthenticated() && 
+        (request.auth.uid == patientId || hasPatientAccess(patientId));
+      
+      // Allow write only by the patient
+      // السماح بالكتابة فقط من قبل المريض
+      allow write: if request.auth.uid == patientId;
+      
+      // Medical records sub-collection - مجموعة السجلات الطبية الفرعية
+      match /medicalRecords/{recordId} {
+        allow read: if isAuthenticated() && 
+          (request.auth.uid == patientId || hasPatientAccess(patientId));
+        allow write: if hasPatientAccess(patientId);
+      }
+      
+      // Permissions sub-collection - مجموعة الصلاحيات الفرعية
+      match /permissions/{doctorId} {
+        allow read: if isAuthenticated() && 
+          (request.auth.uid == patientId || request.auth.uid == doctorId);
+        allow write: if request.auth.uid == patientId;
+      }
+      
+      // Access requests sub-collection - مجموعة طلبات الوصول الفرعية
+      match /accessRequests/{doctorId} {
+        allow read: if isAuthenticated() && 
+          (request.auth.uid == patientId || request.auth.uid == doctorId);
+        allow create: if isDoctor() && request.auth.uid == doctorId;
+        allow delete: if request.auth.uid == patientId;
+      }
+    }
+    
+    // Doctor collection rules - قواعد مجموعة الأطباء
+    match /doctors/{doctorId} {
+      // Allow read by any authenticated user
+      // السماح بالقراءة لأي مستخدم مصادق
+      allow read: if isAuthenticated();
+      
+      // Allow write only by the doctor
+      // السماح بالكتابة فقط من قبل الطبيب
+      allow write: if request.auth.uid == doctorId;
+      
+      // Doctor's schedule sub-collection - مجموعة جدول الطبيب الفرعية
+      match /schedule/{appointmentId} {
+        allow read: if isAuthenticated();
+        allow write: if request.auth.uid == doctorId;
+      }
+    }
+  }
+}
