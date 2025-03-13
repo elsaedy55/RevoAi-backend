@@ -12,110 +12,159 @@ class NotificationService extends BaseService {
     super('notifications');
     this.messaging = firebaseService.getMessaging();
     this.observers = new Map();
+    this.notificationQueue = [];
+    this.isProcessing = false;
+    this.MAX_RETRIES = 3;
+    this.RETRY_DELAY = 1000; // 1 second
+    this.processingInterval = setInterval(() => this.processQueue(), 2000);
   }
 
-  /**
-   * Register an observer for a specific notification type
-   * @param {string} type - Notification type
-   * @param {Function} callback - Observer callback
-   */
-  subscribe(type, callback) {
-    if (!NOTIFICATION_TYPES[type]) {
-      throw new Error(`Invalid notification type: ${type}`);
-    }
+  // إضافة إشعار إلى الطابور
+  async queueNotification(notification) {
+    this.notificationQueue.push({
+      ...notification,
+      retries: 0,
+      timestamp: Date.now()
+    });
 
-    if (!this.observers.has(type)) {
-      this.observers.set(type, new Set());
-    }
-    this.observers.get(type).add(callback);
-  }
-
-  /**
-   * Remove an observer for a specific notification type
-   * @param {string} type - Notification type
-   * @param {Function} callback - Observer callback
-   */
-  unsubscribe(type, callback) {
-    if (this.observers.has(type)) {
-      this.observers.get(type).delete(callback);
+    if (!this.isProcessing) {
+      await this.processQueue();
     }
   }
 
-  /**
-   * Notify all observers of a specific type
-   * @param {string} type - Notification type
-   * @param {Object} data - Notification data
-   */
-  async notify(type, data) {
-    const observers = this.observers.get(type);
-    if (observers) {
-      for (const callback of observers) {
-        await callback(data);
+  // معالجة طابور الإشعارات
+  async processQueue() {
+    if (this.isProcessing || this.notificationQueue.length === 0) {
+      return;
+    }
+
+    this.isProcessing = true;
+    try {
+      while (this.notificationQueue.length > 0) {
+        const notification = this.notificationQueue[0];
+        
+        try {
+          await this.sendNotification(notification);
+          this.notificationQueue.shift(); // إزالة الإشعار بعد النجاح
+        } catch (error) {
+          if (notification.retries < this.MAX_RETRIES) {
+            // إعادة المحاولة لاحقاً
+            notification.retries++;
+            notification.nextRetry = Date.now() + (this.RETRY_DELAY * notification.retries);
+            this.notificationQueue.push(this.notificationQueue.shift());
+          } else {
+            // تسجيل الفشل وإزالة الإشعار
+            logger.error('Failed to send notification after max retries:', error);
+            await this.logFailedNotification(notification, error);
+            this.notificationQueue.shift();
+          }
+        }
       }
+    } finally {
+      this.isProcessing = false;
     }
   }
 
-  /**
-   * Send push notification to a specific user
-   * @param {string} userId - Target user ID
-   * @param {Object} notification - Notification data
-   */
-  async sendPushNotification(userId, notification) {
-    return this.handleOperation(async () => {
-      const { token, title, body, data } = notification;
+  // إرسال إشعار فردي
+  async sendNotification(notification) {
+    const { userId, title, body, data = {}, priority = 'high' } = notification;
 
-      if (!token) {
-        logger.warn(`No FCM token found for user: ${userId}`);
-        return;
+    const userDoc = await firestoreService.getDoc('users', userId);
+    if (!userDoc?.fcmToken) {
+      throw new Error(`No FCM token found for user ${userId}`);
+    }
+
+    const message = {
+      token: userDoc.fcmToken,
+      notification: {
+        title,
+        body,
+      },
+      data: {
+        ...data,
+        timestamp: new Date().toISOString(),
+      },
+      android: {
+        priority,
+        notification: {
+          channelId: 'default',
+          icon: 'ic_notification',
+          color: '#4CAF50',
+          sound: 'default'
+        }
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1
+          }
+        }
       }
+    };
 
-      await this.messaging.send({
-        token,
-        notification: { title, body },
-        data: {
-          ...data,
-          timestamp: new Date().toISOString(),
-        },
-      });
-
-      logger.info(`Push notification sent to user: ${userId}`);
-    }, `Failed to send push notification to user: ${userId}`);
+    await this.messaging.send(message);
+    await this.logSuccessfulNotification(notification);
   }
 
-  /**
-   * Handle diagnosis update notification
-   * @param {Object} data - Diagnosis update data
-   */
-  async handleDiagnosisUpdate(data) {
-    const { patientId, recordId, diagnosis } = data;
+  // تسجيل الإشعارات الناجحة
+  async logSuccessfulNotification(notification) {
+    await firestoreService.setDoc(`notifications/${Date.now()}_${notification.userId}`, {
+      ...notification,
+      status: 'delivered',
+      deliveredAt: new Date()
+    });
+  }
 
-    return this.handleOperation(async () => {
-      await this.notify(NOTIFICATION_TYPES.DIAGNOSIS_UPDATE, {
-        patientId,
+  // تسجيل الإشعارات الفاشلة
+  async logFailedNotification(notification, error) {
+    await firestoreService.setDoc(`failedNotifications/${Date.now()}_${notification.userId}`, {
+      ...notification,
+      error: {
+        message: error.message,
+        code: error.code
+      },
+      failedAt: new Date()
+    });
+  }
+
+  // تنظيف عند إغلاق التطبيق
+  cleanup() {
+    clearInterval(this.processingInterval);
+  }
+
+  // معالجة تحديث التشخيص
+  async handleDiagnosisUpdate({ patientId, recordId, diagnosis }) {
+    return this.queueNotification({
+      userId: patientId,
+      title: 'تحديث التشخيص',
+      body: 'تم تحديث التشخيص الطبي الخاص بك',
+      data: {
+        type: 'DIAGNOSIS_UPDATE',
         recordId,
-        diagnosis,
-        timestamp: new Date(),
-      });
-    }, 'Failed to handle diagnosis update notification');
+        diagnosis
+      },
+      priority: 'high'
+    });
   }
 
-  /**
-   * Handle permission change notification
-   * @param {Object} data - Permission change data
-   */
-  async handlePermissionChange(data) {
-    const { patientId, doctorId, granted } = data;
-    const type = granted
-      ? NOTIFICATION_TYPES.PERMISSION_GRANTED
-      : NOTIFICATION_TYPES.PERMISSION_REVOKED;
-
-    return this.handleOperation(async () => {
-      await this.notify(type, {
-        patientId,
+  // معالجة تغيير الصلاحيات
+  async handlePermissionChange({ patientId, doctorId, granted }) {
+    const doctorDoc = await firestoreService.getDoc('doctors', doctorId);
+    const notification = {
+      userId: patientId,
+      title: granted ? 'صلاحية جديدة' : 'إلغاء الصلاحية',
+      body: granted 
+        ? `تم منح الدكتور ${doctorDoc.name} صلاحية الوصول إلى ملفك الطبي`
+        : `تم إلغاء صلاحية الدكتور ${doctorDoc.name} للوصول إلى ملفك الطبي`,
+      data: {
+        type: granted ? 'PERMISSION_GRANTED' : 'PERMISSION_REVOKED',
         doctorId,
-        timestamp: new Date(),
-      });
-    }, 'Failed to handle permission change notification');
+        doctorName: doctorDoc.name
+      }
+    };
+
+    return this.queueNotification(notification);
   }
 }
 

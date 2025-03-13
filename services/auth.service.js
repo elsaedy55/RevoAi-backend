@@ -35,95 +35,97 @@ class AuthService {
     this.auth = firebaseService.getAuth();
     this.googleProvider = new GoogleAuthProvider();
     this.setupAuthStateObserver();
+    this.loginAttempts = new Map();
+    this.LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
+    this.MAX_LOGIN_ATTEMPTS = 5;
   }
 
-  /**
-   * Sets up Firebase authentication state observer
-   * إعداد مراقب حالة المصادقة في Firebase
-   * @private
-   */
+  // تحسين مراقبة حالة المصادقة
   setupAuthStateObserver() {
-    this.auth.onAuthStateChanged(user => {
+    this.auth.onAuthStateChanged(async user => {
+      if (user) {
+        // مسح محاولات تسجيل الدخول عند نجاح المصادقة
+        this.loginAttempts.delete(user.email);
+        
+        // تحديث توكن FCM
+        await this.updateFCMToken(user);
+      }
       stateService.setCurrentUser(user);
       logger.info(user ? `User authenticated: ${user.email}` : 'User signed out');
     });
   }
 
-  /**
-   * Creates a standardized user profile object
-   * إنشاء كائن موحد لملف المستخدم الشخصي
-   * @private
-   * @param {Object} user - Firebase user object - كائن مستخدم Firebase
-   * @param {Object} additionalData - Additional profile data - بيانات إضافية للملف الشخصي
-   * @param {string} authProvider - Authentication provider - مزود المصادقة
-   * @returns {Object} Standardized user profile - ملف المستخدم الموحد
-   */
-  createUserProfile(user, additionalData, authProvider) {
-    return {
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      ...additionalData,
-      authProvider,
-      createdAt: new Date(),
-    };
-  }
-
-  /**
-   * Validates user registration data
-   * @private
-   * @param {Object} userData - User registration data
-   * @throws {Error} If validation fails
-   */
-  validateUserData(userData) {
-    const errors = Object.entries(USER_VALIDATION_RULES)
-      .map(([field, validator]) => validator(userData[field]))
-      .filter(error => error);
-
-    if (errors.length > 0) {
-      throw new Error('Validation failed: ' + errors.join(', '));
+  // إضافة وظيفة تحديث توكن FCM
+  async updateFCMToken(user) {
+    try {
+      const token = await this.getFCMToken();
+      if (token) {
+        await firestoreService.updateDoc('users', user.uid, {
+          fcmToken: token,
+          lastTokenUpdate: new Date()
+        });
+      }
+    } catch (error) {
+      logger.error('Error updating FCM token:', error);
     }
   }
 
-  /**
-   * Processes user authentication result
-   * @private
-   * @param {Object} userCredential - Firebase user credential
-   * @param {Object} profile - User profile data
-   * @returns {Promise<Object>} Processed authentication result
-   */
-  async processAuthResult(userCredential, profile) {
-    const token = await this.getJWTToken(userCredential.user);
-    const authenticatedUser = {
-      ...userCredential.user,
-      profile,
-    };
+  // تحسين التحقق من محاولات تسجيل الدخول
+  checkLoginAttempts(email) {
+    const attempts = this.loginAttempts.get(email) || { count: 0, lastAttempt: 0 };
+    const now = Date.now();
 
-    stateService.setCurrentUser(authenticatedUser);
+    if (attempts.count >= this.MAX_LOGIN_ATTEMPTS) {
+      if (now - attempts.lastAttempt < this.LOCKOUT_DURATION) {
+        const remainingTime = Math.ceil((this.LOCKOUT_DURATION - (now - attempts.lastAttempt)) / 1000 / 60);
+        throw new Error(`Account temporarily locked. Try again in ${remainingTime} minutes - الحساب مغلق مؤقتاً. حاول مرة أخرى بعد ${remainingTime} دقيقة`);
+      }
+      // إعادة تعيين المحاولات بعد انتهاء فترة القفل
+      attempts.count = 0;
+    }
 
-    return {
-      user: userCredential.user,
-      token,
-      profile,
-    };
+    return attempts;
   }
 
-  /**
-   * Get JWT token for authenticated user
-   * @private
-   * @param {Object} user - Firebase user object
-   * @returns {Promise<string>} JWT token
-   */
-  async getJWTToken(user) {
+  // تحديث محاولات تسجيل الدخول
+  updateLoginAttempts(email, success) {
+    const attempts = this.loginAttempts.get(email) || { count: 0, lastAttempt: 0 };
+    
+    if (success) {
+      this.loginAttempts.delete(email);
+    } else {
+      attempts.count += 1;
+      attempts.lastAttempt = Date.now();
+      this.loginAttempts.set(email, attempts);
+    }
+  }
+
+  // تحسين تسجيل الدخول بالبريد الإلكتروني
+  async signInWithEmail(email, password) {
     try {
-      return await getIdToken(user, true);
+      // التحقق من محاولات تسجيل الدخول
+      this.checkLoginAttempts(email);
+
+      const userCredential = await signInWithEmailAndPassword(this.auth, email, password);
+      
+      // تحديث نجاح تسجيل الدخول
+      this.updateLoginAttempts(email, true);
+      
+      const userProfile = await firestoreService.getDoc('users', userCredential.user.uid);
+      
+      logger.info(`User signed in successfully: ${email}`);
+      return this.processAuthResult(userCredential, userProfile);
     } catch (error) {
-      logger.error('Error getting JWT token:', error);
+      // تحديث فشل تسجيل الدخول
+      this.updateLoginAttempts(email, false);
+      
+      logger.error('Error signing in with email:', error);
       throw error;
     }
   }
 
   /**
-   * Register a new user with email
+   * Starts the registration process
    * @param {Object} userData - User registration data
    * @returns {Promise<Object>} User data with JWT token
    */
@@ -195,25 +197,6 @@ class AuthService {
       return this.processAuthResult(userCredential, userProfile);
     } catch (error) {
       logger.error('Error registering with Google:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Sign in with email and password
-   * @param {string} email - User email
-   * @param {string} password - User password
-   * @returns {Promise<Object>} Authenticated user data
-   */
-  async signInWithEmail(email, password) {
-    try {
-      const userCredential = await signInWithEmailAndPassword(this.auth, email, password);
-      const userProfile = { email: userCredential.user.email };
-
-      logger.info(`User signed in successfully: ${email}`);
-      return this.processAuthResult(userCredential, userProfile);
-    } catch (error) {
-      logger.error('Error signing in with email:', error);
       throw error;
     }
   }

@@ -37,74 +37,30 @@ class FirestoreService {
   constructor() {
     this.db = firebaseService.getFirestore();
     this.collections = COLLECTIONS;
+    this.cache = new Map();
+    this.CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
   }
 
-  /**
-   * التحقق من صحة البيانات الطبية
-   * @param {Object} medicalData - معلومات المريض الطبية
-   * @returns {Object} البيانات الطبية بعد التحقق والتنظيف
-   */
-  validateMedicalData(medicalData) {
-    const conditions = MEDICAL_DATA_RULES.validateConditions(medicalData.medicalConditions);
-    const { hadSurgeries, surgeries } = MEDICAL_DATA_RULES.validateSurgeries(
-      medicalData.hadSurgeries,
-      medicalData.surgeries
-    );
-
-    return {
-      medicalConditions: conditions,
-      hadSurgeries,
-      surgeries,
-    };
-  }
-
-  /**
-   * Set document in Firestore
-   * @param {string} collection - Collection name
-   * @param {string} docId - Document ID
-   * @param {Object} data - Document data
-   */
-  async setDoc(collection, docId, data) {
-    try {
-      const docRef = doc(this.db, collection, docId);
-      await setDoc(docRef, data);
-
-      // Update state based on collection type
-      if (collection === this.collections.doctors) {
-        stateService.setDoctor(docId, data);
-      } else if (collection === this.collections.patients) {
-        stateService.setPatient(docId, data);
-      }
-
-      logger.info(`Document ${docId} created/updated in ${collection}`);
-    } catch (error) {
-      logger.error(`Error setting document in ${collection}:`, error);
-      throw error;
+  // إضافة وظيفة التخزين المؤقت
+  async getCached(key, fetchFn, duration = this.CACHE_DURATION) {
+    const cached = this.cache.get(key);
+    if (cached && Date.now() - cached.timestamp < duration) {
+      return cached.data;
     }
+    const data = await fetchFn();
+    this.cache.set(key, { data, timestamp: Date.now() });
+    return data;
   }
 
-  /**
-   * Get document from Firestore
-   * @param {string} collection - Collection name
-   * @param {string} docId - Document ID
-   */
+  // تحسين وظيفة جلب المستند
   async getDoc(collection, docId) {
     try {
-      // First check state cache based on collection type
-      let data;
-      if (collection === this.collections.doctors) {
-        data = stateService.getDoctor(docId);
-      } else if (collection === this.collections.patients) {
-        data = stateService.getPatient(docId);
-      }
-
-      if (!data) {
-        // If not in state, fetch from Firestore
+      const cacheKey = `${collection}:${docId}`;
+      return await this.getCached(cacheKey, async () => {
         const docRef = doc(this.db, collection, docId);
         const docSnap = await getDoc(docRef);
-        data = docSnap.exists() ? docSnap.data() : null;
+        const data = docSnap.exists() ? docSnap.data() : null;
 
-        // Update state if data exists
         if (data) {
           if (collection === this.collections.doctors) {
             stateService.setDoctor(docId, data);
@@ -112,9 +68,9 @@ class FirestoreService {
             stateService.setPatient(docId, data);
           }
         }
-      }
 
-      return data;
+        return data;
+      });
     } catch (error) {
       logger.error(`Error getting document from ${collection}:`, error);
       throw error;
@@ -316,36 +272,37 @@ class FirestoreService {
   }
 
   /**
-   * Search for patients by criteria
+   * تحسين وظيفة البحث عن المرضى
    * @param {Object} searchParams - Search parameters
    * @returns {Promise<Array>} Array of matching patients
    */
   async searchPatients(searchParams) {
     try {
       const { email, phone, name } = searchParams;
-      let query = collection(this.db, this.collections.patients);
+      const cacheKey = `search:${JSON.stringify(searchParams)}`;
+      
+      return await this.getCached(cacheKey, async () => {
+        let query = collection(this.db, this.collections.patients);
+        const conditions = [];
 
-      if (email) {
-        query = query.where('email', '==', email.toLowerCase());
-      }
-      if (phone) {
-        query = query.where('phone', '==', phone);
-      }
-      if (name) {
-        query = query.where('fullName', '>=', name).where('fullName', '<=', name + '\uf8ff');
-      }
+        if (email) conditions.push(['email', '==', email.toLowerCase()]);
+        if (phone) conditions.push(['phone', '==', phone]);
+        if (name) {
+          conditions.push(['fullName', '>=', name]);
+          conditions.push(['fullName', '<=', name + '\uf8ff']);
+        }
 
-      const snapshot = await getDocs(query);
-      const patients = [];
+        // تحسين الأداء باستخدام الاستعلامات المركبة
+        conditions.forEach(([field, op, value]) => {
+          query = query.where(field, op, value);
+        });
 
-      snapshot.forEach(doc => {
-        patients.push({
+        const snapshot = await getDocs(query);
+        return snapshot.docs.map(doc => ({
           uid: doc.id,
           ...doc.data(),
-        });
-      });
-
-      return patients;
+        }));
+      }, 30000); // 30 seconds cache for search results
     } catch (error) {
       logger.error('Error searching patients:', error);
       throw error;
