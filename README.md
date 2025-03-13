@@ -56,7 +56,7 @@ A comprehensive medical records management system built with Node.js and Firebas
 
 1. **Clone and Setup**
    ```bash
-   git clone [repository-url]
+   git clone https://github.com/elsaedy55/RevoAi-backend
    cd revoai
    npm install
    ```
