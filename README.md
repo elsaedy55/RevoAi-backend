@@ -48,7 +48,11 @@
 
 1. **استنساخ وإعداد المشروع**
    ```bash
+<<<<<<< HEAD
    git clone [رابط-المستودع]
+=======
+   git clone https://github.com/elsaedy55/RevoAi-backend
+>>>>>>> 50f7a2f365e552056a476ad27c57e6099b3e8609
    cd revoai
    npm install
    ```
